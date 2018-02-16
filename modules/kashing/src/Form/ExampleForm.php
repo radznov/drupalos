@@ -4,9 +4,21 @@ namespace Drupal\kashing\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Routing\TrustedRedirectResponse;
+use Drupal\kashing\misc\countries\KashingCountries;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class ExampleForm extends FormBase {
 
+    private $form_id = 'kashing_form';
+    private $kashing_countries;
+
+    /**
+     * Class constructor.
+     */
+    public function __construct($kashing_countries) {
+        $this->kashing_countries = $kashing_countries;
+    }
 
     /**
      * Returns a unique string identifying the form.
@@ -15,15 +27,7 @@ class ExampleForm extends FormBase {
      *   The unique string identifying the form.
      */
 
-    private $form_id = 'kashing_form';
-
-    public function __construct()
-    {
-
-    }
-
-    public function getFormId()
-    {
+    public function getFormId() {
         return $this->form_id;
     }
 
@@ -76,11 +80,7 @@ length.'),
         $form['country'] = [
             '#type' => 'select',
             '#title' => $this->t('Country'),
-            '#options' => [
-                'US' => $this->t('United States'),
-                'UK' => $this->t('United Kingdom'),
-                'PL' => $this->t('Poland'),
-            ],
+            '#options' => $this->kashing_countries->get_all(),
             '#empty_option' => $this->t('--Select a country--'),
             '#required' => TRUE,
         ];
@@ -222,7 +222,97 @@ characters long.'));
 //                drupal_set_message($message);
 //            }
 //        }
+        $config = \Drupal::config('kashing.settings');
+
+        $live_merchant_id = $config->get('key')['live']['merchant'];
+        $test_merchant_id = $config->get('key')['test']['merchant'];
+        $live_secret_key = $config->get('key')['live']['secret'];
+        $test_secret_key = $config->get('key')['test']['secret'];
+        $test_mode = true;
+
+        $option_prefix = 'test_';
+        $option_name = $option_prefix . 'skey';
+        $secret_key = $test_secret_key;
+        $merchant_id =  $test_merchant_id;
+
+        $api_url = 'https://development-backend.kashing.co.uk/';
+        $url = $api_url . 'transaction/init';
+
+        $transaction_data = [
+            'merchantid' => $test_merchant_id,
+            'amount' => '1',
+            'currency' => 'GBP',
+            'returnurl' => 'http://localhost/dr/node/5',
+            'description' => 'No description'
+        ];
+
+        $field_values = [
+            'firstname' => 'Imie',
+            'lastname' => 'nazwisko',
+            'email' => 'cos@gdzies.hehe',
+            'address1' => 'adres1',
+            'city' => 'miasto',
+            'postcode' => '12-456',
+            'country' => 'UK'
+        ];
+
+        $transaction_data = array_merge(
+            $transaction_data,
+            $field_values
+        );
+
+        $data_string = '';
+        foreach ( $transaction_data as $data_key => $data_value ) {
+            $data_string .= $data_value;
+        }
+
+        $transaction_string = $secret_key . $data_string;
+        // SHA1
+        $psign = sha1( $transaction_string );
+
+        $final_transaction_array = array(
+            'transactions' => array(
+                array_merge(
+                    $transaction_data,
+                    array(
+                        'psign' => $psign
+                    )
+                )
+            )
+        );
+
+        $body = json_encode( $final_transaction_array );
 
 
+        $request = \Drupal::httpClient()->post($url, [
+            'method' => 'POST',
+            'body' => $body,
+            'timeout' => 10,
+            'headers' => [
+                'Content-type' => 'application/json',
+            ],
+        ])->getBody()->getContents();
+
+
+        print_r($request);
+        print_r('ok');
+
+
+
+        $response_body = json_decode($request);
+
+        $redirect_url = $response_body->results[0]->redirect;
+
+        //ksm($redirect_url);
+        $form_state->setResponse(new TrustedRedirectResponse($redirect_url, 302));
+    }
+
+
+
+
+    public static function create(ContainerInterface $container) {
+        return new static(
+           new KashingCountries()
+        );
     }
 }

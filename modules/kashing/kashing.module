@@ -39,3 +39,21 @@ function hello_create_node() {
     \Drupal::service('path.alias_storage')->save("/node/" . $node->id(), "/mi/ruta", "es");
     return t("Created node " . $node->get('title')->value);
 }
+
+function kashing_get_pages() {
+
+    $pages = array();
+    $all_pages = [
+        '1' => 'Payment Success',
+        '2' => 'Payment Failure',
+        '3' => 'Sample Page'
+    ];
+    return $all_pages;
+    if ( !is_array( $all_pages ) || !isset( $all_pages ) ) return $pages;
+
+    foreach ( $all_pages as $page ) {
+        $pages[ $page->ID ] = $page->post_title;
+    }
+    return $pages;
+
+}

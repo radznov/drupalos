@@ -3,13 +3,45 @@
 namespace Drupal\kashing\form;
 
 use Drupal\block\Entity\Block;
+use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax;
 use Drupal\Core\Ajax\OpenModalDialogCommand;
+use Drupal\kashing\misc\countries\KashingCountries;
+use Drupal\kashing\misc\currency\KashingCurrency;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+
 
 class KashingSettingsForm extends ConfigFormBase {
+
+    private $module_path;
+    private $kashing_countries;
+    private $kashing_currency;
+
+    public function __construct(ConfigFactoryInterface $config_factory, $kashing_countries, $kashing_currency) {
+        parent::__construct($config_factory);
+
+        $module_handler = \Drupal::service('module_handler');
+        $this->module_path = $module_handler->getModule('kashing')->getPath();
+
+        $this->kashing_countries = $kashing_countries;
+        $this->kashing_currency = $kashing_currency;
+
+    }
+
+
+    public static function create(ContainerInterface $container) {
+       // return parent::create($container);
+
+        return new static(
+            $container->get('config.factory'),
+            new KashingCountries(),
+            new KashingCurrency()
+        );
+    }
 
     /**
      * Gets the configuration names that will be editable.
@@ -17,6 +49,7 @@ class KashingSettingsForm extends ConfigFormBase {
      * @return array
      *   An array of configuration object names that are editable if called in
      *   conjunction with the trait's config() method.
+     *
      */
     protected function getEditableConfigNames()
     {
@@ -40,6 +73,8 @@ class KashingSettingsForm extends ConfigFormBase {
 
         $config = $this->config('kashing.settings');
 
+        $form['#attached']['library'][] = 'core/drupal.dialog.ajax';
+
         $form['kashing_settings'] = array(
             '#type' => 'vertical_tabs',
         );
@@ -54,7 +89,7 @@ class KashingSettingsForm extends ConfigFormBase {
 
         $form['settings_mode']['test_mode'] = [
             '#type' => 'fieldset',
-            '#title' => $this->t('Test Mode'),
+            '#title' => $this->t('Kashing Mode'),
         ];
 
 
@@ -62,7 +97,7 @@ class KashingSettingsForm extends ConfigFormBase {
             '#type' => 'radios',
             '#options' => ['test' => $this->t('Yes'), 'live' => $this->t('No')],
             '#title' => $this->t('Test Mode'),
-            '#default_value' => $config->get('settings_mode'),
+            '#default_value' => $config->get('mode'),
             //'#required' => TRUE,
             '#description' => $this->t('Activate or deactivate the plugin Test Mode. When Test Mode is activated, no credit card payments are processed.'),
         ];
@@ -117,6 +152,39 @@ class KashingSettingsForm extends ConfigFormBase {
         ];
 
 
+        $form['settings_mode']['actions']['submit'] = [
+            '#type' => 'button',
+            '#value' => $this->t('Save changes'),
+            '#description' => $this->t('Submit configuration settings'),
+            //'#submit' => array('::submitGeneral')
+            '#ajax' => array(
+                'callback' => '::submitConfiguration',  // the data that came from the form and that we
+                // will receive as a result in the modal window
+                // 'event' => 'change',
+                '#wrapper' => 'kashing-settings-configuration-result',
+                'progress' => array(
+                    'type' => 'throbber',
+                    'message' => t('Saving...'),
+                ),
+                //'method' => 'append',
+            ),
+             '#suffix' => '<div id="kashing-settings-configuration-result"></div>',
+
+        ];
+
+
+
+//        $form['settings_mode']['actions']['result'] = [
+//            '#type' => 'textfield',
+//            '#attributes' => array(
+//                'class' => array('hidden'),
+//                'id' => array('kashing-settings-configuration-result'),
+//            ),
+//            '#title' => $this->t('Placeholder'),
+//            //  '#default_value' => $config->get('key')['live']['merchant'],
+//        ];
+
+
         /**********************************************/
 
         $form['general_mode'] = [
@@ -133,12 +201,11 @@ class KashingSettingsForm extends ConfigFormBase {
 
         $form['general_mode']['currency']['currency_select'] = [
             '#type' => 'select',
-            '#options' => [
-                'red' => $this->t('Red'),
-                'blue' => $this->t('Blue'),
-                'green' => $this->t('Green'),
-            ],
-            '#empty_option' => $this->t('-select-'),
+            '#options' =>
+                $this->kashing_currency->get_all()
+            ,
+            //'#empty_value' => $this->t('-select-'),
+            '#default_value' => 'GBP'
         ];
 
         $form['general_mode']['success_page'] = [
@@ -147,13 +214,9 @@ class KashingSettingsForm extends ConfigFormBase {
             '#description' => $this->t('Choose the page your clients will be redirected to after the payment is successful.'),
         ];
 
-        $form['general_mode']['success_page']['currency_select'] = [
+        $form['general_mode']['success_page']['select'] = [
             '#type' => 'select',
-            '#options' => [
-                'red' => $this->t('Red'),
-                'blue' => $this->t('Blue'),
-                'green' => $this->t('Green'),
-            ],
+            '#options' => kashing_get_pages(),
             '#empty_option' => $this->t('-select-'),
         ];
 
@@ -164,13 +227,9 @@ class KashingSettingsForm extends ConfigFormBase {
             '#description' => $this->t('Choose the page your clients will be redirected to after the payment failed.'),
         ];
 
-        $form['general_mode']['failure_page']['currency_select'] = [
+        $form['general_mode']['failure_page']['select'] = [
             '#type' => 'select',
-            '#options' => [
-                'red' => $this->t('Red'),
-                'blue' => $this->t('Blue'),
-                'green' => $this->t('Green'),
-            ],
+            '#options' => kashing_get_pages(),
             '#empty_option' => $this->t('-select-'),
         ];
 
@@ -200,9 +259,8 @@ class KashingSettingsForm extends ConfigFormBase {
                 'class' => array('hidden'),
                 'id' => array('ajax_placeholder'),
             ),
-            '#title' => $this->t('Live Merchant ID'),
+            '#title' => $this->t('Placeholder'),
             //  '#default_value' => $config->get('key')['live']['merchant'],
-            '#description' => $this->t('Enter your live Merchant ID.')
         ];
 
 
@@ -312,11 +370,17 @@ class KashingSettingsForm extends ConfigFormBase {
     }
 
 
+
     public function submitForm(array &$form, FormStateInterface $form_state) {
         //parent::submitForm($form, $form_state);
 
         //$config = $this->config('kashing.settings');
         $config = $this->configFactory->getEditable('kashing.settings');
+
+        $mode  = $form_state->getValue(['settings_mode', 'test_mode', 'radio_buttons']);
+        if ($mode) {
+            $config->set('mode', $mode);
+        }
 
         $test_merchant_id  = $form_state->getValue('test_merchant_id');
         if ($test_merchant_id) {
@@ -342,9 +406,74 @@ class KashingSettingsForm extends ConfigFormBase {
 
     }
 
-    public function addNewForm(array &$form, FormStateInterface $form_state) {
+    public function submitConfiguration(array &$form, FormStateInterface $form_state) {
 
-        $values = $form_state->getValues();
+        $test_mode = $form_state->getValue(['settings_mode, test_mode, radio_buttons']);
+
+        $test_merchant_id = $form_state->getValue(['settings_mode, test_mode_keys, test_merchant_id']);
+        $test_secret_key = $form_state->getValue(['settings_mode, test_mode_keys, test_secret_key']);
+
+        $live_merchant_id = $form_state->getValue(['settings_mode, live_mode_keys, live_merchant_id']);
+        $live_secret_key = $form_state->getValue(['settings_mode, live_mode_keys, live_secret_key']);
+
+//        return ['#markup' => $this->t('Error! New form not created! Reason: %reason.',
+//            ['%reason' => $test_mode . $test_merchant_id . $test_secret_key . $live_merchant_id . $live_secret_key])];
+
+
+//        $response = new AjaxResponse();
+//        $status_messages = array('#type' => 'status_messages');
+//        $messages = \Drupal::service('renderer')->renderRoot($status_messages);
+//        if (!empty($messages)) {
+//            $response->addCommand(new Ajax\PrependCommand('#kashing-settings-configuration-result', $messages));
+//        }
+//
+//        return $response;
+
+//        $response = new AjaxResponse();
+//        drupal_set_message($action);
+//        $form['messages']['status'] = [
+//            '#type' => 'status_messages',
+//        ];
+//        $response->addCommand(new InsertCommand(null, $form['messages']));
+//
+//        return $response;
+
+//        $valid = true;//$this->validateEmail($form, $form_state);
+//        $response = new AjaxResponse();
+//        if ($valid) {
+//            $css = [
+//                'border' => '1px solid green',
+//                'background-color' => 'lightblue',
+//                'height' => '100px',
+//                'width' => '100px'
+//            ];
+//            $message = $this->t('Email ok.');
+//        }
+//        else {
+//            $css = ['border' => '1px solid red'];
+//            $message = $this->t('Email not valid.');
+//        }
+//        $response->addCommand(new Ajax\CssCommand('#kashing-settings-configuration-result', $css));
+//        $response->addCommand(new Ajax\HtmlCommand('#kashing-settings-configuration-result', $message));
+//        return $response;
+
+
+        $elem = [
+            '#type' => 'textfield',
+            '#size' => '60',
+            '#disabled' => TRUE,
+            '#value' => 'Hello, ' . $form_state->getValue('input') . '!',
+            '#attributes' => [
+                'id' => ['#kashing-settings-configuration-result'],
+            ],
+        ];
+        $renderer = \Drupal::service('renderer');
+        $response = new AjaxResponse();
+        $response->addCommand(new Ajax\ReplaceCommand('#kashing-settings-configuration-result', $renderer->render($elem)));
+        return $response;
+    }
+
+    public function addNewForm(array &$form, FormStateInterface $form_state) {
 
         //"kashing_form_title":"aa","kashing_form_amount":"bb","kashing_form_description":"cc",
         //"kashing_form_checkboxes":{"address2":"address2","email":"email","phone":0},
@@ -395,7 +524,7 @@ class KashingSettingsForm extends ConfigFormBase {
                     'id' => $form_title,
                     'weight' => 0,
                     'status' => TRUE,
-                    'region' => 'footer',
+                    //'region' => 'footer',
                     'plugin' => 'kashing_block',
                     'settings' => [
                         'label' => $form_title,
@@ -405,7 +534,7 @@ class KashingSettingsForm extends ConfigFormBase {
                             'kashing_form_checkboxes' => $form_checkboxes
                         ]
                     ],
-                    'theme' => 'seven',
+                    //'theme' => 'seven',
                     'visibility' => [
                         'request_path' => [
                             'id' => 'request_path',

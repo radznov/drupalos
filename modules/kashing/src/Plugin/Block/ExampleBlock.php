@@ -46,6 +46,19 @@ class ExampleBlock extends BlockBase implements  ContainerFactoryPluginInterface
 
     public function build() {
 
+        $conf = \Drupal::config('kashing.settings');
+        $cos = $conf->get('key')['test']['merchant'];
+        print_r($cos);
+        print_r('|');
+
+
+//        $path = \Drupal::service('file_system')->realpath(file_default_scheme() . "://") . '/';
+//        print_r('PATH : ' . $path);
+
+//        $module_handler = \Drupal::service('module_handler');
+//        $path2 = $module_handler->getModule('kashing_shortcode')->getPath();
+//        print_r('Module2 : ' . $path2);
+
         $build = array();
 
         $config = $this->getConfiguration();
