@@ -1,0 +1,10 @@
+kashing_button_script:
+  header: true
+  version: 1.x
+  js:
+    js/kashing_button_script.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/query.once

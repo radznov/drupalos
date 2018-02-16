@@ -1,0 +1,41 @@
+<?php
+/**
+* @file
+* A description of what your module does.
+*/
+
+use Drupal\node\Entity\Node;
+use Drupal\user\Entity\User;
+
+/**
+ * @return \Drupal\Core\StringTranslation\TranslatableMarkup
+ */
+function hello_create_node() {
+    $node = Node::create([
+        // The node entity bundle.
+        'type' => 'article',
+        'langcode' => 'en',
+        'created' => REQUEST_TIME,
+        'changed' => REQUEST_TIME,
+        // The user ID.
+        'uid' => 1,
+        'title' => 'My test!',
+        // An array with taxonomy terms.
+        'field_tags' => [1],
+        'body' => [
+            'summary' => '',
+            'value' => '<p>The body of my node.</p>',
+            'format' => 'full_html',
+        ],
+    ]);
+    $node->save();
+    \Drupal::service('path.alias_storage')->save("/node/" . $node->id(),
+        "/hello/example-node", "en");
+    $node_es = $node->addTranslation('es');
+    $node_es->title = 'Mi prueba!';
+    $node_es->body->value = '<p>El cuerpo de mi nodo.</p>';
+    $node_es->body->format = 'full_html';
+    $node_es->save();
+    \Drupal::service('path.alias_storage')->save("/node/" . $node->id(), "/mi/ruta", "es");
+    return t("Created node " . $node->get('title')->value);
+}

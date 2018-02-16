@@ -1,0 +1,9 @@
+name: Color button
+type: module
+description: "Adds the Kashing shortcode button to CKEditor."
+package: Kashing
+dependencies:
+  - ckeditor
+  - panelbutton
+core: 8.x
+

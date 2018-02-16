@@ -1,0 +1,12 @@
+<?php
+
+
+function kashing_button_page_attachments_alter(&$page) {
+    $page['#attached']['library'][] = 'kashing_button/kashing_button_script';
+
+    $ids = \Drupal::entityQuery('block')
+        ->condition('plugin', 'kashing_block')
+        ->execute();
+
+    $page['#attached']['drupalSettings']['kashing']['kashing_button']['foo'] = $ids;
+}

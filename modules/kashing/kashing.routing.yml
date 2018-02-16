@@ -1,0 +1,42 @@
+kashing.content:
+  path: '/kashing'
+  defaults:
+    _controller: '\Drupal\kashing\Controller\KashingController::test'
+  requirements:
+    _permission: 'access content'
+
+kashing.settings:
+  path: '/admin/config/kashing'
+  defaults:
+    _entiti_list: 'view'
+    _title: 'Kashing Settings'
+  requirements:
+    _permission: 'administer views'
+
+
+kashing.form:
+  path: 'kashing/form'
+  defaults:
+    _form: '\Drupal\kashing\Form\ExampleForm'
+    _title: 'Example form title'
+  requirements:
+    _permission: 'access content'
+
+kashing.form.find:
+   path: 'kashing/form/find'
+   defaults:
+     _form: '\Drupal\kashing\Form\ExampleFormFind'
+   requirements:
+       _access: 'TRUE'
+
+
+
+kashing.form.settings:
+   path: 'admin/config/kashing'
+   defaults:
+      _form: '\Drupal\kashing\Form\KashingSettingsForm'
+      _title: 'Kashing settings'
+   requirements:
+      _permission: 'administer views'
+   options:
+      _admin_route: TRUE

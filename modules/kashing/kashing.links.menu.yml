@@ -1,0 +1,20 @@
+kashing.form.menu:
+  title: Kashing Form
+  menu_name: main
+  route_name: kashing.form
+  expanded: TRUE
+  weight: 120
+
+kashing.form.find.menu:
+  title: Kashing Modal Form
+  menu_name: main
+  route_name: kashing.form.find
+  expanded: TRUE
+  weight: 130
+
+kashing.settings:
+  title: 'Kashing'
+  route_name: kashing.form.settings
+  description: 'Kashing Payments Settings'
+  parent: system.admin_config
+  weight: 99
