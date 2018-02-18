@@ -2,9 +2,11 @@
 
 namespace Drupal\kashing\Form;
 
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\TrustedRedirectResponse;
+use Drupal\kashing\Entity\KashingAPI;
 use Drupal\kashing\misc\countries\KashingCountries;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -12,6 +14,9 @@ class ExampleForm extends FormBase {
 
     private $form_id = 'kashing_form';
     private $kashing_countries;
+    private $form_amount;
+    private $form_description;
+    private $kashing_api;
 
     /**
      * Class constructor.
@@ -44,11 +49,24 @@ class ExampleForm extends FormBase {
      */
     public function buildForm(array $form, FormStateInterface $form_state, $argument = array()) {
 
+        $amount = $argument['kashing_form_amount'];
+
+        if (is_int($amount)) {
+            $amount *= 100;
+            $this->form_amount = $amount;
+        } elseif (is_numeric($amount)) {
+            $this->form_amount = $amount;
+        } else {
+            $this->form_amount = 0;
+        }
+
+        $this->form_description = $argument['kashing_form_description'];
+        //TODO else no description
+
         $form['first_name'] = [
             '#type' => 'textfield',
             '#title' => $this->t('First Name'),
-            '#description' => $this->t('Enter your First Name. It must be at least 5 characters in 
-length.'),
+            //'#description' => $this->t('Enter your First Name. It must be at least 5 characters in length.'),
             '#required' => TRUE,
         ];
 
@@ -71,7 +89,7 @@ length.'),
             ];
         }
 
-        $form['City'] = [
+        $form['city'] = [
             '#type' => 'textfield',
             '#title' => $this->t('City'),
             '#required' => TRUE,
@@ -93,14 +111,15 @@ length.'),
 
         if ($argument['kashing_form_checkboxes']['phone'] === 'phone') {
             $form['phone'] = [
-                '#type' => 'textfield',
+                '#type' => 'tel',
                 '#title' => $this->t('Phone'),
+                //'#description' => $this->t('Enter your phone number.'),
             ];
         }
 
         if ($argument['kashing_form_checkboxes']['email'] === 'email') {
             $form['email'] = [
-                '#type' => 'textfield',
+                '#type' => 'email',
                 '#title' => $this->t('Email'),
             ];
         }
@@ -113,12 +132,6 @@ length.'),
 //            '#description' => 'If you did not take any of the tests, leave unchecked',
 //        ];
 
-//        // Email.
-//        $form['email'] = [
-//            '#type' => 'email',
-//            '#title' => $this->t('Email'),
-//            '#description' => 'Enter your email address',
-//        ];
 //
 //        // Number.
 //        $form['quantity'] = [
@@ -146,13 +159,6 @@ length.'),
 //            '#description' => $this->t('Enter a search word or phrase'),
 //        ];
 
-//        // Tel.
-//        $form['phone'] = [
-//            '#type' => 'tel',
-//            '#title' => $this->t('Phone'),
-//            '#description' => $this->t('Enter your phone number, beginning with country code,
-//e.g., 1 503 555 1212'),
-//        ];
 //        // TableSelect.
 //        $options = [
 //            1 => ['first_name' => 'Indy', 'last_name' => 'Jones'],
@@ -182,15 +188,44 @@ length.'),
             '#description' => $this->t('Submit, #type = submit'),
         ];
 
+
         return $form;
     }
 
     public function validateForm(array &$form, FormStateInterface $form_state) {
-        $first_name = $form_state->getValue('first_name');
-        if (strlen($first_name) < 5) {
-            // Set an error for the form element with a key of "title".
-            $form_state->setErrorByName('first_name', $this->t('Your name must be at least 5 
-characters long.'));
+
+//        $first_name = $this->getValidFieldValue('first_name', $form_state);
+//        $regex = "/^[^<,\"@/*$%?=>:|;#]*$/i";
+//        if (preg_match($regex, trim($first_name))) {
+//            $form_state->setErrorByName('first_name', $this->t('Please enter a valid name.'));
+//        }
+
+        $phone = $this->getValidFieldValue('phone', $form_state);
+        $regex = '/^[0-9\-\(\)\/\+\s]*$/';
+        if ($phone != '' && !preg_match($regex, trim($phone))) {
+            $form_state->setErrorByName('phone', $this->t('Please enter a valid phone number.'));
+        }
+
+        $email = $this->getValidFieldValue('email', $form_state);
+        $regex = '/^[^\s@]+@[^\s@]+\.[^\s@]+$/';
+        if ($email != '' && !preg_match($regex, trim($email))) {
+            $form_state->setErrorByName('email', $this->t('Please enter a valid email address.'));
+        }
+
+        $this->kashing_api = new KashingAPI();
+
+        //check if kashing API is not succesfully created
+        //TODO show only to admins?
+        if ($this->kashing_api->hasErrors()) {
+
+            $errors = $this->kashing_api->getErrors();
+
+            foreach ($errors as $error) {
+
+                $form_state->setErrorByName($error['field'], $error['msg']);
+            }
+        } else {
+            $this->kashing_api = null;
         }
     }
 
@@ -203,111 +238,57 @@ characters long.'));
      *   The current state of the form.
      */
     public function submitForm(array &$form, FormStateInterface $form_state) {
-//        print_r($form['#id']);
-//        // Find out what was submitted.
-//        $values = $form_state->getValues();
-//        foreach ($values as $key => $value) {
-//            $label = isset($form[$key]['#title']) ? $form[$key]['#title'] : $key;
-//            // Many arrays return 0 for unselected values so lets filter that out.
-//            if (is_array($value)) {
-//                $value = array_filter($value);
-//            }
-//            // Only display for controls that have titles and values.
-//            if ($value && $label) {
-//                $display_value = is_array($value) ? preg_replace('/[\n\r\s]+/', ' ', print_r($value,
-//                    1)) : $value;
-//
-//                $message = $this->t('Value for %title: %value', array('%title' => $label, '%value'
-//                => $display_value));
-//                drupal_set_message($message);
-//            }
-//        }
-        $config = \Drupal::config('kashing.settings');
 
-        $live_merchant_id = $config->get('key')['live']['merchant'];
-        $test_merchant_id = $config->get('key')['test']['merchant'];
-        $live_secret_key = $config->get('key')['live']['secret'];
-        $test_secret_key = $config->get('key')['test']['secret'];
-        $test_mode = true;
+        //TODO fields validation
 
-        $option_prefix = 'test_';
-        $option_name = $option_prefix . 'skey';
-        $secret_key = $test_secret_key;
-        $merchant_id =  $test_merchant_id;
-
-        $api_url = 'https://development-backend.kashing.co.uk/';
-        $url = $api_url . 'transaction/init';
+        $first_name = $this->getValidFieldValue('first_name', $form_state);
+        $last_name = $this->getValidFieldValue('last_name', $form_state);
+        $address1 = $this->getValidFieldValue('address1', $form_state);
+        $city = $this->getValidFieldValue('city', $form_state);
+        $postcode = $this->getValidFieldValue('postcode', $form_state);
+        $country = $this->getValidFieldValue('country', $form_state);
 
         $transaction_data = [
-            'merchantid' => $test_merchant_id,
-            'amount' => '1',
-            'currency' => 'GBP',
-            'returnurl' => 'http://localhost/dr/node/5',
-            'description' => 'No description'
+            'amount' => $this->form_amount,
+            'description' => $this->form_description,
+            'firstname' => $first_name,
+            'lastname' => $last_name,
+            'address1' => $address1,
+            'city' => $city,
+            'postcode' => $postcode,
+            'country' => $country
         ];
 
-        $field_values = [
-            'firstname' => 'Imie',
-            'lastname' => 'nazwisko',
-            'email' => 'cos@gdzies.hehe',
-            'address1' => 'adres1',
-            'city' => 'miasto',
-            'postcode' => '12-456',
-            'country' => 'UK'
-        ];
-
-        $transaction_data = array_merge(
-            $transaction_data,
-            $field_values
-        );
-
-        $data_string = '';
-        foreach ( $transaction_data as $data_key => $data_value ) {
-            $data_string .= $data_value;
+        $email = $this->getValidFieldValue('email', $form_state);
+        if(isset($email)) {
+            $transaction_data['email'] = $email;
         }
 
-        $transaction_string = $secret_key . $data_string;
-        // SHA1
-        $psign = sha1( $transaction_string );
+        $phone = $this->getValidFieldValue('phone', $form_state);
+        if(isset($phone)) {
+            $transaction_data['phone'] = $phone;
+        }
 
-        $final_transaction_array = array(
-            'transactions' => array(
-                array_merge(
-                    $transaction_data,
-                    array(
-                        'psign' => $psign
-                    )
-                )
-            )
-        );
-
-        $body = json_encode( $final_transaction_array );
+        $address2 = $this->getValidFieldValue('address2', $form_state);
+        if(isset($address2)) {
+            $transaction_data['address2'] = $address2;
+        }
 
 
-        $request = \Drupal::httpClient()->post($url, [
-            'method' => 'POST',
-            'body' => $body,
-            'timeout' => 10,
-            'headers' => [
-                'Content-type' => 'application/json',
-            ],
-        ])->getBody()->getContents();
+        //if kashing api is successfully created
+        if ($this->kashing_api) {
+            $redirect_url = $this->kashing_api->process($transaction_data);
+            $form_state->setResponse(new TrustedRedirectResponse($redirect_url, 302));
+        } else {
+            //TODO if cant send POST reqest to kashing due to configuration errors e.g. no keys or return pages
+        }
 
-
-        print_r($request);
-        print_r('ok');
-
-
-
-        $response_body = json_decode($request);
-
-        $redirect_url = $response_body->results[0]->redirect;
-
-        //ksm($redirect_url);
-        $form_state->setResponse(new TrustedRedirectResponse($redirect_url, 302));
     }
 
 
+    private function getValidFieldValue($field_name, FormStateInterface $form_state){
+        return  Html::escape($form_state->getValue($field_name));;
+    }
 
 
     public static function create(ContainerInterface $container) {

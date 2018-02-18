@@ -7,6 +7,7 @@ use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Block\BlockPluginInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Url;
 use Drupal\user\Entity\User;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -45,11 +46,10 @@ class ExampleBlock extends BlockBase implements  ContainerFactoryPluginInterface
 
 
     public function build() {
+        //error_reporting(0);
+        $cos = 'hehe';
 
-        $conf = \Drupal::config('kashing.settings');
-        $cos = $conf->get('key')['test']['merchant'];
-        print_r($cos);
-        print_r('|');
+        ksm($cos);
 
 
 //        $path = \Drupal::service('file_system')->realpath(file_default_scheme() . "://") . '/';

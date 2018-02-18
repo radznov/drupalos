@@ -97,7 +97,7 @@ class KashingSettingsForm extends ConfigFormBase {
             '#type' => 'radios',
             '#options' => ['test' => $this->t('Yes'), 'live' => $this->t('No')],
             '#title' => $this->t('Test Mode'),
-            '#default_value' => $config->get('mode'),
+            '#default_value' => $config->get('mode') ? $config->get('mode') : 'test',
             //'#required' => TRUE,
             '#description' => $this->t('Activate or deactivate the plugin Test Mode. When Test Mode is activated, no credit card payments are processed.'),
         ];
@@ -214,7 +214,7 @@ class KashingSettingsForm extends ConfigFormBase {
             '#description' => $this->t('Choose the page your clients will be redirected to after the payment is successful.'),
         ];
 
-        $form['general_mode']['success_page']['select'] = [
+        $form['general_mode']['success_page']['success_page_select'] = [
             '#type' => 'select',
             '#options' => kashing_get_pages(),
             '#empty_option' => $this->t('-select-'),
@@ -227,7 +227,7 @@ class KashingSettingsForm extends ConfigFormBase {
             '#description' => $this->t('Choose the page your clients will be redirected to after the payment failed.'),
         ];
 
-        $form['general_mode']['failure_page']['select'] = [
+        $form['general_mode']['failure_page']['failure_page_select'] = [
             '#type' => 'select',
             '#options' => kashing_get_pages(),
             '#empty_option' => $this->t('-select-'),
@@ -377,10 +377,13 @@ class KashingSettingsForm extends ConfigFormBase {
         //$config = $this->config('kashing.settings');
         $config = $this->configFactory->getEditable('kashing.settings');
 
-        $mode  = $form_state->getValue(['settings_mode', 'test_mode', 'radio_buttons']);
+        //$mode  = $form_state->getValue(['settings_mode', 'test_mode', 'radio_buttons']);
+        $mode  = $form_state->getValue( 'radio_buttons');
         if ($mode) {
             $config->set('mode', $mode);
         }
+
+        ksm($mode);
 
         $test_merchant_id  = $form_state->getValue('test_merchant_id');
         if ($test_merchant_id) {
@@ -401,6 +404,29 @@ class KashingSettingsForm extends ConfigFormBase {
         if ($live_secret_key) {
             $config->set('key.live.secret', $live_secret_key);
         }
+
+        $live_secret_key = $form_state->getValue('live_secret_key');
+        if ($live_secret_key) {
+            $config->set('key.live.secret', $live_secret_key);
+        }
+
+        $currency = $form_state->getValue('currency_select');
+        if ($live_secret_key) {
+            $config->set('currency', $currency);
+        }
+
+        //TODO success and failure pages
+        $success_page = $form_state->getValue('success_page_select');
+        if ($live_secret_key) {
+            $config->set('success_page', $success_page);
+        }
+
+        $failure_page = $form_state->getValue('failure_page_select');
+        if ($live_secret_key) {
+            $config->set('failure_page', $failure_page);
+        }
+
+        ksm($failure_page);
 
         $config->save();
 

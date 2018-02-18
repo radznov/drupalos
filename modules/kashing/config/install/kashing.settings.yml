@@ -1,11 +1,11 @@
-settings_mode: 'test'
+settings_mode: ''
 key:
   test:
-    merchant: '420'
-    secret: 'sekretny'
+    merchant: ''
+    secret: ''
   live:
     merchant: ''
     secret: ''
-currency: 'pln'
-success_page: 'test'
-failure_page: 'test2'
+currency: ''
+success_page: ''
+failure_page: ''
